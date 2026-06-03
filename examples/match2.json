@@ -1,0 +1,15 @@
+{
+  "tracks": [
+    {"id":7,"samples":64,"seconds_tracked":42.7,"reliability":"alta","distance_m":91.6,
+     "avg_speed_m_per_s":1.4,"side":"A","team":null,"dominant_zone":"A6",
+     "zone_profile_pct":{"A6":44,"A5":33,"A1":23},"avg_court_pos_m":[3.4,5.1],
+     "pose_stats":null,"appearance_embedding":null},
+    {"id":5,"samples":39,"seconds_tracked":26.5,"reliability":"media","distance_m":55.3,
+     "avg_speed_m_per_s":0.9,"side":"A","team":null,"dominant_zone":"A2",
+     "zone_profile_pct":{"A2":58,"A3":27,"A4":15},"avg_court_pos_m":[6.8,6.9],
+     "pose_stats":null,"appearance_embedding":null}
+  ],
+  "track_samples":[{"id":7,"samples":[{"frame":0,"court_x":3.4,"court_y":5.1}]}],
+  "n_rallies":21,"n_serves":21,"avg_rally_s":6.8,"longest_rally_s":21.0,
+  "total_play_s":142.8,"serves_by_side":{"A":11,"B":10}
+}
