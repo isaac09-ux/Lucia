@@ -36,6 +36,28 @@ distancia, velocidad, fiabilidad, posición media, pose), por partido.
 Almacenamiento: SQLite (un archivo, stdlib, consultable). Las jugadoras rival
 quedan fuera a propósito (solo se guardan dorsales del roster), igual que CLARA.
 
+## Razonar sobre la historia (Fase 2 — motor determinista + LLM opcional)
+
+Encima del sustrato vive el razonamiento, con una **frontera dura** entre dos piezas:
+
+- **Motor determinista** (`lucia/reason.py::compute_facts`) — toma la historia de
+  UNA jugadora y calcula hechos: últimos valores, deltas, tendencia (sube/baja/plano),
+  media móvil y banderas por regla. Aritmética pura, auditable, testeable. **Es la
+  fuente de verdad**, y es donde, con el tiempo, codificas TU metodología FIVB como reglas.
+- **Narración** (`lucia/reason.py::narrate` + `lucia/llm.py`) — opcional, "por
+  comodidad": vuelve esos hechos un párrafo de coach. **Nunca calcula ni inventa una
+  cifra** — si un número aparece en el texto, salió tal cual del motor. El LLM narra;
+  el motor calcula. Por eso el modelo es commodity intercambiable (Gemma local / Kimi /
+  Claude) sin tocar tu IP.
+
+Privacidad (importante con data de menores): por defecto la narración corre **local**
+(Ollama), los hechos no salen de tu equipo. Para nube, configura `LUCIA_LLM_BASE_URL` /
+`LUCIA_LLM_API_KEY` (ver `lucia/llm.py`).
+
+- `lucia/reason.py` — motor determinista (hechos por jugadora) + narración LLM opcional.
+- `lucia/llm.py` — cliente LLM sin dependencias (urllib stdlib; Ollama local por defecto).
+- `reason.py` — lectura de coach: imprime los hechos y, opcional, el párrafo del LLM.
+
 ## Uso
 
 ```bash
@@ -46,6 +68,11 @@ python ingest.py out/scouting_data.json --roster roster.json \
 # Leer trayectorias
 python query.py player 7          # historia de la #7, partido por partido
 python query.py trend distance_m  # tendencia de equipo en una métrica
+
+# Razonar sobre una jugadora (Fase 2)
+python reason.py --player 7                 # solo hechos (motor determinista)
+python reason.py --player 7 --show-prompt   # + lo que recibiría el LLM (sin llamar)
+python reason.py --player 7 --narrate       # + párrafo de coach (LLM, Ollama local por defecto)
 ```
 
 Prueba con la data de ejemplo en `examples/` (dos partidos, la #7 en ambos).
@@ -54,8 +81,11 @@ Prueba con la data de ejemplo en `examples/` (dos partidos, la #7 en ambos).
 
 - **Fase 0 (hecho):** sustrato — acumular `scouting_data.json` en historia por jugadora.
 - **Fase 1 (hecho, parcial):** consultas crudas — trayectoria por jugadora, tendencias de equipo.
-- **Fase 2:** primera lectura de coach — Claude (API) sobre la historia de UNA jugadora
-  + metodología FIVB → "qué drillear". Aquí nace la segunda cabeza.
+- **Fase 2 (hecho, base):** primera lectura de coach — motor determinista de hechos por
+  jugadora + capa de lenguaje (LLM intercambiable: Gemma local / Kimi / Claude) que SOLO
+  los narra. La metodología FIVB empieza a vivir como reglas/banderas en `compute_facts`.
+  Aquí nace la segunda cabeza. Falta: ampliar las banderas a tu criterio y sumar más
+  métricas (p.ej. `jump_index`) conforme CLARA las emita.
 - **Fase 3:** cuando los prompts se pongan difíciles de mantener y haya ejemplos
   para optimizar → `context-engineering-dspy` para orquestar las cabezas
   (técnica/táctica/psicológica) + patrón `mem0`/Qdrant para memoria escalable
