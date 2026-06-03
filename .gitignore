@@ -1,0 +1,8 @@
+# Memoria SQLite generada en runtime
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
