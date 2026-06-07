@@ -82,6 +82,48 @@ def compute_facts(history):
         if t:
             metrics[m] = t
 
+    dominant_zone_history = [r.get("dominant_zone") for r in history if r.get("dominant_zone") is not None]
+    
+    zone_consistency = 0.0
+    if dominant_zone_history:
+        most_common_zone_count = Counter(dominant_zone_history).most_common(1)[0][1]
+        zone_consistency = most_common_zone_count / len(history)
+
+    avg_court_pos_series = []
+    for r in history:
+        pos_str = r.get("avg_court_pos_m")
+        if pos_str:
+            try:
+                pos = json.loads(pos_str)
+                if pos:
+                    avg_court_pos_series.append(pos)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    court_pos_drift_m = None
+    if len(avg_court_pos_series) >= 2:
+        p1 = avg_court_pos_series[0]
+        p2 = avg_court_pos_series[-1]
+        drift = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+        court_pos_drift_m = round(drift, 2)
+        
+    zone_profile_latest = None
+    if history:
+        zp_str = history[-1].get("zone_profile_pct")
+        if zp_str:
+            try:
+                zone_profile_latest = json.loads(zp_str)
+            except (json.JSONDecodeError, TypeError):
+                pass
+                
+    spatial = {
+        "dominant_zone_history": dominant_zone_history,
+        "zone_consistency": zone_consistency,
+        "avg_court_pos_series": avg_court_pos_series,
+        "court_pos_drift_m": court_pos_drift_m,
+        "zone_profile_latest": zone_profile_latest
+    }
+
     # ── Banderas (reglas). Hoy solo OBJETIVAS — no requieren tu criterio. ──
     # Aquí es donde, con el tiempo, codificas TU metodología FIVB como reglas.
     flags = []
@@ -96,6 +138,7 @@ def compute_facts(history):
         "player_name": history[0].get("player_name"),
         "n_matches": len(history),
         "metrics": metrics,
+        "spatial": spatial,
         "flags": flags,
     }
 
