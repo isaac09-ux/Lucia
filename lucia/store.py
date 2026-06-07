@@ -56,6 +56,21 @@ CREATE TABLE IF NOT EXISTS player_match (
     raw                TEXT,   -- ficha COMPLETA del track (JSON) — lossless
     UNIQUE(match_id, jersey)
 );
+CREATE TABLE IF NOT EXISTS rival_match (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    match_id         TEXT NOT NULL REFERENCES matches(match_id),
+    jersey           INTEGER,          -- may be None if unrecognized
+    track_idx        INTEGER,          -- sequential index within the match
+    samples          INTEGER,
+    seconds_tracked  REAL,
+    distance_m       REAL,
+    avg_speed_m_per_s REAL,
+    side             TEXT,
+    dominant_zone    TEXT,
+    zone_profile_pct TEXT,             -- JSON
+    avg_court_pos_m  TEXT,             -- JSON
+    raw              TEXT              -- full track JSON, lossless
+);
 """
 
 # Llaves de resumen de rally que emite clara.py
@@ -150,6 +165,49 @@ def ingest_match(db, scouting_path, roster_path, date, opponent,
     return {"match_id": mid, "status": "ok",
             "players_ingested": ingested, "skipped_anonymous": skipped}
 
+
+def ingest_rival_match(db, scouting_path, date, opponent,
+                       our_side, category=None, video=None, replace=False):
+    """
+    Ingests the OPPONENT tracks from a scouting_data.json.
+    our_side: "A" or "B" — which side is Las Chispas.
+    Stores all tracks where side != our_side (or side is None).
+    Returns: {"match_id": ..., "status": ..., "rivals_ingested": N}
+    """
+    scouting = json.loads(Path(scouting_path).read_text())
+    category = category
+    video = video or Path(scouting_path).stem
+    mid = _match_id(video, date)
+
+    if replace:
+        db.execute("DELETE FROM rival_match WHERE match_id=?", (mid,))
+
+    ingested = 0
+    for idx, t in enumerate(scouting.get("tracks", [])):
+        side = t.get("side")
+        if side != our_side:
+            db.execute(
+                "INSERT INTO rival_match(match_id,jersey,track_idx,samples,"
+                "seconds_tracked,distance_m,avg_speed_m_per_s,side,dominant_zone,"
+                "zone_profile_pct,avg_court_pos_m,raw) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (mid, t.get("id"), idx, t.get("samples"), t.get("seconds_tracked"),
+                 t.get("distance_m"), t.get("avg_speed_m_per_s"), side,
+                 t.get("dominant_zone"), json.dumps(t.get("zone_profile_pct"), ensure_ascii=False),
+                 json.dumps(t.get("avg_court_pos_m")), json.dumps(t, ensure_ascii=False))
+            )
+            ingested += 1
+    db.commit()
+    return {"match_id": mid, "status": "ok", "rivals_ingested": ingested}
+
+
+def rival_history(db, opponent_name):
+    """All rival tracks for a given opponent name, ordered by date."""
+    rows = db.execute(
+        "SELECT m.date, m.opponent, r.* FROM rival_match r "
+        "JOIN matches m ON m.match_id=r.match_id "
+        "WHERE m.opponent=? ORDER BY m.date", (opponent_name,)).fetchall()
+    return [dict(r) for r in rows]
 
 def player_history(db, jersey):
     """Todos los registros de una jugadora, ordenados por fecha de partido."""
