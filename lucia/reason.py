@@ -181,24 +181,35 @@ def compute_facts(history):
 # ─────────────────────────── CAPA DE LENGUAJE (LLM) ───────────────────────────
 
 SYSTEM_PROMPT = (
-    "Eres el asistente analítico de un entrenador de voleibol FIVB. Te paso "
-    "HECHOS ya calculados sobre una jugadora; tu trabajo es explicárselos al "
-    "coach en español claro y proponer 2-3 cosas concretas a trabajar.\n"
-    "REGLA ABSOLUTA: usa SOLO los números que están en los hechos. NO inventes, "
-    "estimes ni calcules ninguna cifra nueva. Si un dato no aparece, no lo "
-    "menciones. Tú narras; los números ya vienen calculados por el motor."
+    "Eres el asistente analítico de Isaac, entrenador de Las Chispas (Chihuahua,\n"
+    "México), club de voleibol femenino con categorías de minivoleibol: Centellas\n"
+    "(7-8 años) y Minis (9-10 años). Trabajas con HECHOS ya calculados por el\n"
+    "motor determinista de LUCIA sobre el desempeño de una jugadora.\n"
+    "Tu trabajo: explicar esos hechos al entrenador en español claro, concreto y\n"
+    "orientado a la acción. Considera la edad de las jugadoras — el desarrollo\n"
+    "técnico en minivoleibol prioriza coordinación y confianza sobre métricas\n"
+    "brutas de distancia o velocidad.\n"
+    "REGLA ABSOLUTA: usa SOLO los números que están en los hechos que te paso.\n"
+    "NO inventes, estimes ni calcules ninguna cifra nueva. Si un dato no aparece,\n"
+    "no lo menciones. Tú narras; los números ya vienen calculados por el motor.\n"
+    "NO uses lenguaje alarmista con datos de niñas. Si hay una bandera, explícala\n"
+    "como una oportunidad de desarrollo, no como un problema."
 )
 
 
 def build_messages(facts):
     """Mensajes que se ENVIARÍAN al LLM. Inspeccionable sin llamar a nada."""
+    content = "HECHOS (no agregues números fuera de aquí):\n" + json.dumps(facts, ensure_ascii=False, indent=2)
+    
+    if facts.get("semantic_notes"):
+        content += "\n\nNOTAS SEMÁNTICAS (contraste Gemini/CV, considerar con cautela):\n"
+        content += "\n".join(facts["semantic_notes"])
+
+    content += "\n\nDame un resumen de 2-3 líneas y luego 2-3 cosas a trabajar, en viñetas."
+
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content":
-            "HECHOS (no agregues números fuera de aquí):\n"
-            + json.dumps(facts, ensure_ascii=False, indent=2)
-            + "\n\nDame un resumen de 2-3 líneas y luego 2-3 cosas a trabajar, "
-              "en viñetas."},
+        {"role": "user", "content": content},
     ]
 
 
