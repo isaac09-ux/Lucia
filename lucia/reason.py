@@ -19,6 +19,8 @@ commodity intercambiable (Kimi / Claude / local vía Ollama).
 """
 import argparse
 import json
+import math
+from collections import Counter
 from pathlib import Path
 
 # Métricas escalares con tendencia (las que hoy emite el store; el jump_index
