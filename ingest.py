@@ -27,13 +27,15 @@ def main():
     p.add_argument("--db", default="lucia.db", help="archivo SQLite (default lucia.db)")
     p.add_argument("--replace", action="store_true",
                    help="re-ingesta si el partido ya existe")
+    p.add_argument("--clara-reason", default=None,
+                   help="ruta al JSON de clara_reason (opcional)")
     p.add_argument("--rival-side", choices=["A", "B"], default=None,
                    help="si se provee, ingesta también tracks del rival (asume que somos el lado opuesto)")
     a = p.parse_args()
 
     db = connect(a.db)
     res = ingest_match(db, a.scouting, a.roster, a.date, a.opponent,
-                       a.category, a.video, a.replace)
+                       a.category, a.video, a.replace, a.clara_reason)
     print(f"[LUCIA] partido {res['match_id']} — {res['status']}")
     print(f"        jugadoras guardadas: {res['players_ingested']} | "
           f"tracks anónimos (rival) descartados: {res['skipped_anonymous']}")

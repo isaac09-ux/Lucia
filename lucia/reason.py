@@ -156,12 +156,24 @@ def compute_facts(history):
     if last_dom_zone and last_dom_zone.endswith("1") and last_side == "A":
         flags.append("zona dominante cerca de zona 1 — posible partido como servidor frecuente o rotación desfavorable, revisar continuidad táctica")
 
+    semantic_notes = []
+    if history:
+        cr_notes = history[-1].get("clara_reason_notes")
+        if cr_notes:
+            try:
+                notes = json.loads(cr_notes)
+                if notes:
+                    semantic_notes = notes
+            except (json.JSONDecodeError, TypeError):
+                pass
+
     return {
         "jersey": history[0].get("jersey"),
         "player_name": history[0].get("player_name"),
         "n_matches": len(history),
         "metrics": metrics,
         "spatial": spatial,
+        "semantic_notes": semantic_notes,
         "flags": flags,
     }
 

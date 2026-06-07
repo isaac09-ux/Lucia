@@ -48,11 +48,14 @@ CREATE TABLE IF NOT EXISTS player_match (
     seconds_tracked    REAL,
     distance_m         REAL,
     avg_speed_m_per_s  REAL,
+    jump_index         REAL,
+    touch_rallies      REAL,
     side               TEXT,
     dominant_zone      TEXT,
     zone_profile_pct   TEXT,   -- JSON {zona: pct}
     avg_court_pos_m    TEXT,   -- JSON [x, y]
     pose_stats         TEXT,   -- JSON (None sin --pose)
+    clara_reason_notes TEXT,   -- JSON array of semantic flags from clara_reason
     raw                TEXT,   -- ficha COMPLETA del track (JSON) — lossless
     UNIQUE(match_id, jersey)
 );
@@ -107,7 +110,7 @@ def _match_id(video, date):
 
 
 def ingest_match(db, scouting_path, roster_path, date, opponent,
-                 category=None, video=None, replace=False):
+                 category=None, video=None, replace=False, clara_reason_path=None):
     """
     Dobla un scouting_data.json (un partido) en la historia por jugadora.
 
@@ -120,6 +123,12 @@ def ingest_match(db, scouting_path, roster_path, date, opponent,
     category = category or roster.get("team")
     video = video or Path(scouting_path).stem
     mid = _match_id(video, date)
+    
+    clara_reason = []
+    if clara_reason_path:
+        cr_path = Path(clara_reason_path)
+        if cr_path.exists():
+            clara_reason = json.loads(cr_path.read_text())
 
     exists = db.execute("SELECT 1 FROM matches WHERE match_id=?", (mid,)).fetchone()
     if exists:
@@ -145,12 +154,18 @@ def ingest_match(db, scouting_path, roster_path, date, opponent,
         if name is None:
             skipped += 1          # track anónimo (rival) — por diseño no se guarda
             continue
+            
+        track_flags = []
+        for cr in clara_reason:
+            if cr.get("jersey") == jersey or cr.get("clip_id") == t.get("clip_id"):
+                track_flags.extend(cr.get("flags", []))
+                
         db.execute(
             "INSERT INTO player_match(match_id,jersey,player_name,reliability,"
             "samples,seconds_tracked,distance_m,avg_speed_m_per_s,jump_index,"
             "touch_rallies,side,dominant_zone,zone_profile_pct,avg_court_pos_m,"
-            "pose_stats,raw)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "pose_stats,clara_reason_notes,raw)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (mid, jersey, name, t.get("reliability"), t.get("samples"),
              t.get("seconds_tracked"), t.get("distance_m"),
              t.get("avg_speed_m_per_s"), t.get("jump_index"),
@@ -158,6 +173,7 @@ def ingest_match(db, scouting_path, roster_path, date, opponent,
              json.dumps(t.get("zone_profile_pct"), ensure_ascii=False),
              json.dumps(t.get("avg_court_pos_m")),
              json.dumps(t.get("pose_stats"), ensure_ascii=False),
+             json.dumps(track_flags, ensure_ascii=False) if track_flags else None,
              json.dumps(t, ensure_ascii=False)))
         ingested += 1
 
