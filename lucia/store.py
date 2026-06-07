@@ -65,11 +65,24 @@ _RALLY_KEYS = ("n_rallies", "n_serves", "avg_rally_s", "longest_rally_s",
 SCALAR_METRICS = ("distance_m", "avg_speed_m_per_s", "seconds_tracked", "samples")
 
 
+def migrate_v1(db):
+    """Add jump_index and touch_rallies columns if they don't exist yet
+    (for databases created before v1)."""
+    try:
+        db.execute("ALTER TABLE player_match ADD COLUMN jump_index REAL")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        db.execute("ALTER TABLE player_match ADD COLUMN touch_rallies REAL")
+    except sqlite3.OperationalError:
+        pass
+
 def connect(db_path):
     """Abre (o crea) la base y garantiza el esquema."""
     db = sqlite3.connect(str(db_path))
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
+    migrate_v1(db)
     return db
 
 
@@ -119,12 +132,14 @@ def ingest_match(db, scouting_path, roster_path, date, opponent,
             continue
         db.execute(
             "INSERT INTO player_match(match_id,jersey,player_name,reliability,"
-            "samples,seconds_tracked,distance_m,avg_speed_m_per_s,side,"
-            "dominant_zone,zone_profile_pct,avg_court_pos_m,pose_stats,raw)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "samples,seconds_tracked,distance_m,avg_speed_m_per_s,jump_index,"
+            "touch_rallies,side,dominant_zone,zone_profile_pct,avg_court_pos_m,"
+            "pose_stats,raw)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (mid, jersey, name, t.get("reliability"), t.get("samples"),
              t.get("seconds_tracked"), t.get("distance_m"),
-             t.get("avg_speed_m_per_s"), t.get("side"), t.get("dominant_zone"),
+             t.get("avg_speed_m_per_s"), t.get("jump_index"),
+             t.get("touch_rallies"), t.get("side"), t.get("dominant_zone"),
              json.dumps(t.get("zone_profile_pct"), ensure_ascii=False),
              json.dumps(t.get("avg_court_pos_m")),
              json.dumps(t.get("pose_stats"), ensure_ascii=False),

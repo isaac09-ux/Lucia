@@ -23,7 +23,7 @@ from pathlib import Path
 
 # Métricas escalares con tendencia (las que hoy emite el store; el jump_index
 # entra aquí en cuanto lo ingestes como una métrica más por partido).
-SCALAR_METRICS = ("distance_m", "avg_speed_m_per_s", "seconds_tracked", "samples")
+SCALAR_METRICS = ("distance_m", "avg_speed_m_per_s", "seconds_tracked", "samples", "jump_index", "touch_rallies")
 FLAT_EPS_FRAC = 0.05   # cambio < 5% del valor previo = "plano"
 
 
