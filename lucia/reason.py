@@ -133,6 +133,29 @@ def compute_facts(history):
     if _monotonic([r.get("avg_speed_m_per_s") for r in history], rising=True):
         flags.append("velocidad media sube 3+ partidos (mejora física)")
 
+    if court_pos_drift_m is not None and court_pos_drift_m > 2.0 and len(history) >= 3:
+        flags.append(f"posición media en cancha se desplazó {court_pos_drift_m}m entre el primer y último partido — verificar si es adaptación táctica o falta de sistema")
+
+    if zone_consistency < 0.5 and len(history) >= 3:
+        flags.append(f"zona dominante inestable (consistencia {zone_consistency:.2f} en {len(history)} partidos) — revisar posicionamiento en sistema")
+
+    avg_speed_vals = [r.get("avg_speed_m_per_s") for r in history if r.get("avg_speed_m_per_s") is not None]
+    if len(avg_speed_vals) >= 3:
+        if avg_speed_vals[-3] < avg_speed_vals[-2] and avg_speed_vals[-2] > avg_speed_vals[-1]:
+            flags.append(f"velocidad tocó techo en partido {len(history)-1} ({avg_speed_vals[-2]} m/s) y bajó en el último ({avg_speed_vals[-1]} m/s) — plateau de velocidad, revisar carga de entrenamiento")
+
+    touch_rallies_metric = metrics.get("touch_rallies")
+    if touch_rallies_metric and touch_rallies_metric["latest"] > 3.5 and touch_rallies_metric["direction"] == "sube":
+        flags.append(f"carga de toques alta ({touch_rallies_metric['latest']} toques/rally, tendencia sube) — revisar distribución de balón en sistema para proteger la jugadora")
+
+    if history[-1].get("reliability") == "baja":
+        flags.append("fiabilidad de tracking BAJA en el último partido — los datos pueden no ser representativos, revisar el video manualmente")
+
+    last_dom_zone = history[-1].get("dominant_zone")
+    last_side = history[-1].get("side")
+    if last_dom_zone and last_dom_zone.endswith("1") and last_side == "A":
+        flags.append("zona dominante cerca de zona 1 — posible partido como servidor frecuente o rotación desfavorable, revisar continuidad táctica")
+
     return {
         "jersey": history[0].get("jersey"),
         "player_name": history[0].get("player_name"),
